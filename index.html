@@ -4,245 +4,128 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>KustVåg – Västkustens Surfprognos</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-  :root {
-    --bg: #020b18;
-    --bg2: #061525;
-    --bg3: #0a1f35;
-    --accent: #00b4d8;
-    --accent2: #0077a8;
-    --gold: #f0a500;
-    --green: #00e5a0;
-    --red: #ff4560;
-    --orange: #ff8c00;
-    --text: #cde8f5;
-    --muted: #5a7a95;
-    --border: #0d3050;
-    --card: #071e33;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Exo 2', sans-serif; overflow-x: hidden; }
+:root {
+  --bg: #020b18; --bg2: #061525; --bg3: #0a1f35;
+  --accent: #00b4d8; --gold: #f0a500; --green: #00e5a0;
+  --red: #ff4560; --orange: #ff8c00;
+  --text: #cde8f5; --muted: #5a7a95; --border: #0d3050; --card: #071e33;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Exo 2', sans-serif; overflow: hidden; }
 
-  /* SCANLINE OVERLAY */
-  body::before {
-    content: '';
-    position: fixed; inset: 0; pointer-events: none; z-index: 9999;
-    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,180,216,0.015) 2px, rgba(0,180,216,0.015) 4px);
-  }
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px;
+  background: linear-gradient(90deg, #020b18, #061525, #020b18);
+  border-bottom: 1px solid var(--border);
+  position: relative; z-index: 1001;
+}
+.logo { font-family: 'Orbitron', monospace; font-weight: 900; font-size: 1.2rem; color: var(--accent); letter-spacing: 0.1em; text-shadow: 0 0 20px rgba(0,180,216,0.5); }
+.logo span { color: var(--gold); }
+.header-sub { font-size: 0.58rem; color: var(--muted); margin-top: 1px; letter-spacing: 0.06em; }
+.header-meta { text-align: right; }
+.htime { font-family: 'Orbitron', monospace; font-size: 0.75rem; color: var(--accent); }
+.hupd { font-size: 0.6rem; color: var(--muted); margin-top: 2px; }
 
-  /* HEADER */
-  header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 20px;
-    background: linear-gradient(90deg, #020b18 0%, #061525 50%, #020b18 100%);
-    border-bottom: 1px solid var(--border);
-    position: sticky; top: 0; z-index: 1000;
-  }
-  .logo {
-    font-family: 'Orbitron', monospace; font-weight: 900; font-size: 1.3rem;
-    color: var(--accent); letter-spacing: 0.1em;
-    text-shadow: 0 0 20px rgba(0,180,216,0.5);
-  }
-  .logo span { color: var(--gold); }
-  .header-meta { font-size: 0.7rem; color: var(--muted); text-align: right; line-height: 1.6; }
-  .header-meta .time { color: var(--accent); font-family: 'Orbitron', monospace; }
+.tabs {
+  display: flex; background: var(--bg2); border-bottom: 1px solid var(--border);
+  padding: 0 12px; position: relative; z-index: 1001;
+}
+.tab {
+  padding: 9px 16px; cursor: pointer; font-size: 0.7rem; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+  border-bottom: 2px solid transparent; transition: all 0.2s;
+  font-family: 'Orbitron', monospace;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
-  /* TABS */
-  .tabs {
-    display: flex; gap: 2px;
-    background: var(--bg2); border-bottom: 1px solid var(--border);
-    padding: 0 16px;
-  }
-  .tab {
-    padding: 10px 18px; cursor: pointer; font-size: 0.75rem; font-weight: 600;
-    letter-spacing: 0.08em; text-transform: uppercase;
-    color: var(--muted); border-bottom: 2px solid transparent;
-    transition: all 0.2s; font-family: 'Orbitron', monospace;
-  }
-  .tab:hover { color: var(--text); }
-  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.view { display: none; }
+.view.active { display: block; }
 
-  /* VIEWS */
-  .view { display: none; }
-  .view.active { display: block; }
+/* MAP */
+#map-view { position: relative; }
+#map { width: 100%; height: calc(100vh - 106px); }
 
-  /* ============ MAP VIEW ============ */
-  #map-view { position: relative; }
-  #map { width: 100%; height: calc(100vh - 110px); }
+.map-legend {
+  position: absolute; bottom: 16px; left: 10px; z-index: 900;
+  background: rgba(2,11,24,0.92); border: 1px solid var(--border);
+  padding: 10px 13px; font-size: 0.66rem; color: var(--muted);
+  backdrop-filter: blur(8px); min-width: 160px;
+}
+.legend-title { font-family: 'Orbitron', monospace; font-size: 0.6rem; color: var(--accent); letter-spacing: 0.1em; margin-bottom: 7px; }
+.legend-row { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+.legend-line { width: 22px; height: 2px; }
+.legend-divider { border-color: var(--border); margin: 6px 0; }
 
-  .leaflet-container { background: #020b18 !important; }
+/* INFO PANEL */
+.map-panel {
+  position: absolute; top: 10px; right: 10px; z-index: 900;
+  background: rgba(2,11,24,0.95); border: 1px solid var(--border);
+  padding: 14px; width: 210px; display: none;
+  backdrop-filter: blur(8px);
+}
+.map-panel.open { display: block; }
+.panel-name { font-family: 'Orbitron', monospace; font-size: 0.8rem; color: var(--accent); margin-bottom: 2px; }
+.panel-region { font-size: 0.62rem; color: var(--muted); margin-bottom: 10px; }
+.panel-row { display: flex; justify-content: space-between; font-size: 0.7rem; margin-bottom: 5px; color: var(--muted); }
+.panel-row strong { color: var(--text); font-weight: 600; }
+.panel-close { position: absolute; top: 8px; right: 10px; cursor: pointer; color: var(--muted); font-size: 1rem; line-height: 1; }
+.panel-close:hover { color: var(--text); }
+.panel-wave-big { font-family: 'Orbitron', monospace; font-size: 2rem; font-weight: 900; color: var(--accent); margin: 8px 0 0; text-align: center; }
+.panel-wave-sub { font-size: 0.6rem; color: var(--muted); text-align: center; letter-spacing: 0.08em; margin-bottom: 8px; }
 
-  /* Custom map tiles dark filter */
-  .leaflet-tile { filter: brightness(0.35) saturate(0.3) hue-rotate(190deg); }
+/* SPOTS VIEW */
+#spots-view { height: calc(100vh - 106px); overflow-y: auto; padding: 12px; }
+.spots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px,1fr)); gap: 10px; }
+.spot-card {
+  background: var(--card); border: 1px solid var(--border); padding: 14px;
+  position: relative; overflow: hidden;
+}
+.spot-card::after {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+.spot-name { font-family: 'Orbitron', monospace; font-size: 0.78rem; color: var(--accent); font-weight: 700; }
+.spot-region { font-size: 0.62rem; color: var(--muted); margin-top: 1px; margin-bottom: 10px; }
+.metrics { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; }
+.metric { text-align: center; background: rgba(0,180,216,0.04); padding: 6px 4px; }
+.mv { font-family: 'Orbitron', monospace; font-size: 0.9rem; font-weight: 700; color: var(--text); }
+.mu { font-size: 0.58rem; color: var(--muted); }
+.ml { font-size: 0.58rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
+.compass-row { display: flex; gap: 12px; margin-top: 10px; align-items: flex-start; }
+.cw { text-align: center; }
+.cl { font-size: 0.58rem; color: var(--muted); margin-bottom: 3px; text-transform: uppercase; }
 
-  .map-legend {
-    position: absolute; bottom: 20px; left: 12px; z-index: 800;
-    background: rgba(6,21,37,0.92); border: 1px solid var(--border);
-    padding: 10px 14px; font-size: 0.68rem; color: var(--muted);
-    backdrop-filter: blur(6px);
-  }
-  .legend-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+/* FORECAST */
+#forecast-view { height: calc(100vh - 106px); overflow-y: auto; padding: 12px; }
+.fselect {
+  background: var(--bg2); border: 1px solid var(--border); color: var(--text);
+  font-family: 'Exo 2', sans-serif; font-size: 0.78rem;
+  padding: 8px 12px; width: 100%; margin-bottom: 12px; cursor: pointer;
+}
+.ftable { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
+.ftable th {
+  background: var(--bg3); color: var(--accent); font-family: 'Orbitron', monospace;
+  font-size: 0.58rem; letter-spacing: 0.08em; padding: 7px 8px;
+  text-align: left; border-bottom: 1px solid var(--border);
+}
+.ftable td { padding: 6px 8px; border-bottom: 1px solid rgba(13,48,80,0.4); vertical-align: middle; }
+.ftable tr:hover td { background: rgba(0,180,216,0.04); }
+.best-row td { background: rgba(0,229,160,0.06) !important; }
 
-  .map-info-panel {
-    position: absolute; top: 12px; right: 12px; z-index: 800;
-    background: rgba(6,21,37,0.95); border: 1px solid var(--border);
-    padding: 16px; width: 240px;
-    backdrop-filter: blur(8px);
-    display: none;
-  }
-  .map-info-panel.visible { display: block; }
-  .map-info-name { font-family: 'Orbitron', monospace; font-size: 0.85rem; color: var(--accent); margin-bottom: 10px; }
-  .map-info-row { display: flex; justify-content: space-between; font-size: 0.72rem; margin-bottom: 6px; color: var(--muted); }
-  .map-info-row span:last-child { color: var(--text); font-weight: 600; }
-  .map-info-score { font-family: 'Orbitron', monospace; font-size: 1.8rem; font-weight: 900; text-align: center; margin: 10px 0 4px; }
-  .map-info-label { text-align: center; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; }
+.loading { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 180px; gap: 10px; }
+.spinner { width: 36px; height: 36px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-family: 'Orbitron', monospace; font-size: 0.65rem; color: var(--muted); letter-spacing: 0.1em; }
 
-  /* ============ SPOTS VIEW ============ */
-  #spots-view { padding: 16px; }
-
-  .status-bar {
-    display: flex; align-items: center; gap: 12px;
-    background: var(--bg2); border: 1px solid var(--border);
-    padding: 8px 16px; margin-bottom: 16px; font-size: 0.72rem;
-  }
-  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-  .status-text { color: var(--muted); }
-  .status-text strong { color: var(--green); }
-
-  .spots-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 12px;
-  }
-
-  .spot-card {
-    background: var(--card); border: 1px solid var(--border);
-    padding: 16px; cursor: pointer;
-    transition: border-color 0.2s, transform 0.15s;
-    position: relative; overflow: hidden;
-  }
-  .spot-card:hover { border-color: var(--accent2); transform: translateY(-1px); }
-  .spot-card::before {
-    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-    background: linear-gradient(90deg, transparent, var(--accent), transparent);
-    opacity: 0; transition: opacity 0.3s;
-  }
-  .spot-card:hover::before { opacity: 1; }
-
-  .spot-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-  .spot-name { font-family: 'Orbitron', monospace; font-size: 0.8rem; font-weight: 700; color: var(--accent); letter-spacing: 0.05em; }
-  .spot-region { font-size: 0.65rem; color: var(--muted); margin-top: 2px; }
-
-  .score-badge {
-    font-family: 'Orbitron', monospace; font-weight: 900;
-    font-size: 1.5rem; text-align: right; line-height: 1;
-  }
-  .score-label { font-size: 0.6rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 2px; text-align: right; }
-
-  .spot-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
-  .metric { text-align: center; }
-  .metric-val { font-family: 'Orbitron', monospace; font-size: 0.85rem; font-weight: 700; color: var(--text); }
-  .metric-unit { font-size: 0.6rem; color: var(--muted); }
-  .metric-label { font-size: 0.6rem; color: var(--muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
-
-  .compass-row { display: flex; gap: 16px; align-items: center; margin-bottom: 10px; }
-  .compass-wrap { text-align: center; }
-  .compass-label { font-size: 0.6rem; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; }
-  .compass-svg { display: block; margin: 0 auto; }
-
-  .reasons-row { display: flex; flex-wrap: wrap; gap: 4px; }
-  .chip {
-    font-size: 0.6rem; padding: 2px 8px; border-radius: 2px;
-    text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;
-  }
-  .chip-green { background: rgba(0,229,160,0.12); color: var(--green); border: 1px solid rgba(0,229,160,0.25); }
-  .chip-red { background: rgba(255,69,96,0.12); color: var(--red); border: 1px solid rgba(255,69,96,0.25); }
-  .chip-orange { background: rgba(255,140,0,0.12); color: var(--orange); border: 1px solid rgba(255,140,0,0.25); }
-  .chip-blue { background: rgba(0,180,216,0.12); color: var(--accent); border: 1px solid rgba(0,180,216,0.25); }
-
-  .sparkline-wrap { margin-top: 10px; height: 50px; position: relative; }
-  .sparkline-wrap canvas { width: 100% !important; height: 50px !important; }
-
-  /* ============ FORECAST VIEW ============ */
-  #forecast-view { padding: 16px; }
-  .forecast-header { margin-bottom: 16px; }
-  .forecast-spot-select {
-    background: var(--bg2); border: 1px solid var(--border);
-    color: var(--text); font-family: 'Exo 2', sans-serif; font-size: 0.8rem;
-    padding: 8px 12px; width: 100%; cursor: pointer;
-  }
-  .forecast-table-wrap { overflow-x: auto; }
-  .forecast-table {
-    width: 100%; border-collapse: collapse; font-size: 0.72rem;
-  }
-  .forecast-table th {
-    background: var(--bg3); color: var(--accent); font-family: 'Orbitron', monospace;
-    font-size: 0.6rem; letter-spacing: 0.08em; padding: 8px 10px;
-    text-align: left; border-bottom: 1px solid var(--border);
-  }
-  .forecast-table td {
-    padding: 7px 10px; border-bottom: 1px solid rgba(13,48,80,0.5);
-    vertical-align: middle;
-  }
-  .forecast-table tr:hover td { background: rgba(0,180,216,0.04); }
-  .score-cell { font-family: 'Orbitron', monospace; font-weight: 700; font-size: 0.9rem; }
-  .hour-cell { color: var(--muted); font-family: 'Orbitron', monospace; font-size: 0.65rem; }
-  .best-row td { background: rgba(0,229,160,0.05) !important; }
-  .best-row .hour-cell { color: var(--green); }
-
-  /* LOADING */
-  .loading {
-    display: flex; align-items: center; justify-content: center;
-    height: 200px; flex-direction: column; gap: 12px;
-  }
-  .loader {
-    width: 40px; height: 40px; border: 2px solid var(--border);
-    border-top-color: var(--accent); border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .loading-text { font-family: 'Orbitron', monospace; font-size: 0.7rem; color: var(--muted); letter-spacing: 0.1em; }
-
-  /* ERROR */
-  .error-box {
-    background: rgba(255,69,96,0.08); border: 1px solid rgba(255,69,96,0.3);
-    padding: 12px 16px; font-size: 0.75rem; color: var(--red); margin: 16px;
-  }
-
-  /* WIND ARROW SVG helpers */
-  .wind-arrow { transition: transform 0.5s ease; }
-
-  /* Score colors */
-  .score-epic { color: #ff6b35; }
-  .score-good { color: var(--green); }
-  .score-surfable { color: var(--accent); }
-  .score-poor { color: var(--orange); }
-  .score-flat { color: var(--muted); }
-
-  /* Auto-refresh indicator */
-  .refresh-bar {
-    height: 2px; background: var(--border); position: relative; overflow: hidden;
-  }
-  .refresh-progress {
-    height: 100%; background: var(--accent);
-    animation: refill 600s linear infinite;
-    transform-origin: left; width: 100%;
-  }
-  @keyframes refill { from{transform:scaleX(1)} to{transform:scaleX(0)} }
-
-  /* Responsive */
-  @media(max-width:600px) {
-    .spots-grid { grid-template-columns: 1fr; }
-    .map-info-panel { width: 180px; padding: 10px; }
-    .logo { font-size: 1rem; }
-  }
+.status-bar { display: flex; align-items: center; gap: 10px; background: var(--bg2); border: 1px solid var(--border); padding: 7px 12px; margin-bottom: 10px; font-size: 0.7rem; }
+.sdot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.3} }
 </style>
 </head>
 <body>
@@ -250,14 +133,13 @@
 <header>
   <div>
     <div class="logo">KUST<span>VÅG</span></div>
-    <div style="font-size:0.6rem;color:var(--muted);margin-top:2px;letter-spacing:0.05em">VÄSTKUSTENS SURFPROGNOS</div>
+    <div class="header-sub">VÄSTKUSTENS SURFPROGNOS</div>
   </div>
   <div class="header-meta">
-    <div class="time" id="clock">--:--</div>
-    <div id="last-updated" style="color:var(--muted)">Hämtar data...</div>
+    <div class="htime" id="clock">--:--</div>
+    <div class="hupd" id="hupd">Hämtar...</div>
   </div>
 </header>
-<div class="refresh-bar"><div class="refresh-progress" id="refresh-prog"></div></div>
 
 <div class="tabs">
   <div class="tab active" onclick="switchTab('map')">🗺 Karta</div>
@@ -265,129 +147,128 @@
   <div class="tab" onclick="switchTab('forecast')">📅 Prognos</div>
 </div>
 
-<!-- MAP VIEW -->
+<!-- MAP -->
 <div id="map-view" class="view active">
   <div id="map"></div>
+
   <div class="map-legend">
-    <div style="font-family:'Orbitron',monospace;font-size:0.65rem;color:var(--accent);margin-bottom:6px;letter-spacing:0.08em">KVALITET</div>
-    <div class="legend-row"><div class="legend-dot" style="background:#ff6b35"></div>EPIC 80–100</div>
-    <div class="legend-row"><div class="legend-dot" style="background:var(--green)"></div>BRA 60–79</div>
-    <div class="legend-row"><div class="legend-dot" style="background:var(--accent)"></div>SURFBAR 40–59</div>
-    <div class="legend-row"><div class="legend-dot" style="background:var(--orange)"></div>DÅLIG 20–39</div>
-    <div class="legend-row"><div class="legend-dot" style="background:var(--muted)"></div>FLAT 0–19</div>
+    <div class="legend-title">PILAR PÅ KARTAN</div>
+    <div class="legend-row">
+      <div class="legend-line" style="background:#00b4d8"></div>
+      <span style="color:#00b4d8">▶ Vindriktning</span>
+    </div>
+    <div class="legend-row">
+      <div class="legend-line" style="background:#f0a500;border-top:2px dashed #f0a500;"></div>
+      <span style="color:#f0a500">▶ Vågriktn. (svall)</span>
+    </div>
+    <hr class="legend-divider">
+    <div class="legend-title" style="margin-top:4px">VÅGHÖJD (HAVET)</div>
+    <div class="legend-row"><div class="legend-line" style="background:#00e5a0"></div><span>&gt;1.5 m – Stor</span></div>
+    <div class="legend-row"><div class="legend-line" style="background:#00b4d8"></div><span>0.8–1.5 m – Medium</span></div>
+    <div class="legend-row"><div class="legend-line" style="background:#f0a500"></div><span>0.4–0.8 m – Liten</span></div>
+    <div class="legend-row"><div class="legend-line" style="background:#5a7a95"></div><span>&lt;0.4 m – Mikro</span></div>
   </div>
-  <div class="map-info-panel" id="map-panel">
-    <div class="map-info-name" id="panel-name">–</div>
-    <div class="map-info-score" id="panel-score">–</div>
-    <div class="map-info-label" id="panel-label">–</div>
-    <hr style="border-color:var(--border);margin:8px 0">
-    <div class="map-info-row"><span>Vind</span><span id="panel-wind">–</span></div>
-    <div class="map-info-row"><span>Våghöjd</span><span id="panel-wave">–</span></div>
-    <div class="map-info-row"><span>Vågperiod</span><span id="panel-period">–</span></div>
-    <div class="map-info-row"><span>Vågriktn.</span><span id="panel-wdir">–</span></div>
-    <div class="map-info-row"><span>Vatten</span><span id="panel-sst">–</span></div>
+
+  <div class="map-panel" id="mpanel">
+    <span class="panel-close" onclick="document.getElementById('mpanel').classList.remove('open')">✕</span>
+    <div class="panel-name" id="p-name">–</div>
+    <div class="panel-region" id="p-region">–</div>
+    <div class="panel-wave-big" id="p-wave">–</div>
+    <div class="panel-wave-sub">VÅGHÖJD</div>
+    <div class="panel-row"><span>Period</span><strong id="p-period">–</strong></div>
+    <div class="panel-row"><span>Vågriktn.</span><strong id="p-wdir">–</strong></div>
+    <div class="panel-row"><span>Vind</span><strong id="p-wind">–</strong></div>
+    <div class="panel-row"><span>Vindriktn.</span><strong id="p-wnddir">–</strong></div>
+    <div class="panel-row"><span>Vattentemp.</span><strong id="p-sst">–</strong></div>
   </div>
 </div>
 
-<!-- SPOTS VIEW -->
+<!-- SPOTS -->
 <div id="spots-view" class="view">
   <div class="status-bar">
-    <div class="status-dot" id="status-dot"></div>
-    <div class="status-text" id="status-text">Ansluter till API...</div>
+    <div class="sdot"></div>
+    <div id="stxt">Ansluter...</div>
   </div>
-  <div id="spots-container">
-    <div class="loading"><div class="loader"></div><div class="loading-text">HÄMTAR PROGNOSER...</div></div>
+  <div id="spots-grid" class="spots-grid">
+    <div class="loading"><div class="spinner"></div><div class="loading-text">HÄMTAR PROGNOSER...</div></div>
   </div>
 </div>
 
-<!-- FORECAST VIEW -->
+<!-- FORECAST -->
 <div id="forecast-view" class="view">
-  <div class="forecast-header">
-    <select class="forecast-spot-select" id="forecast-select" onchange="renderForecastTable()">
-      <option value="">Välj spot...</option>
-    </select>
-  </div>
-  <div id="forecast-container">
-    <div style="padding:40px;text-align:center;color:var(--muted);font-size:0.8rem">Välj en spot ovan för att se detaljerad 48h-prognos</div>
-  </div>
+  <select class="fselect" id="fsel" onchange="renderForecast()">
+    <option value="">Välj spot...</option>
+  </select>
+  <div id="ftable-wrap"><div style="padding:30px;text-align:center;color:var(--muted);font-size:0.78rem">Välj en spot ovan</div></div>
 </div>
 
 <script>
 // ============================================================
-// SPOTS CONFIG
+// SPOTS — verifierade koordinater
 // ============================================================
 const SPOTS = [
   {
     id: 'apelviken',
     name: 'Apelviken',
     region: 'Varberg',
-    lat: 57.0815, lng: 12.2048,
-    swellDirs: [180, 270], // SW-W
-    offshoreMin: 0, offshoreMax: 90, // NNE-E
+    lat: 57.0833,
+    lng: 12.2000,
     offshoreLabel: 'NNE/E'
+  },
+  {
+    id: 'skrea',
+    name: 'Skrea Strand',
+    region: 'Falkenberg',
+    lat: 56.8983,
+    lng: 12.4617,
+    offshoreLabel: 'NE/E'
   },
   {
     id: 'ringhenas',
     name: 'Ringenäs',
-    region: 'Halmstad',
-    lat: 56.748, lng: 12.645,
-    swellDirs: [225, 280],
-    offshoreMin: 45, offshoreMax: 135,
+    region: 'Halmstad N',
+    lat: 56.7628,
+    lng: 12.6303,
     offshoreLabel: 'E'
   },
   {
     id: 'tylosand',
     name: 'Tylösand',
     region: 'Halmstad',
-    lat: 56.6415, lng: 12.5722,
-    swellDirs: [200, 270],
-    offshoreMin: 10, offshoreMax: 70,
+    lat: 56.6358,
+    lng: 12.5747,
     offshoreLabel: 'NNE'
   },
   {
     id: 'skaret',
     name: 'Skäret',
     region: 'Mellbystrand',
-    lat: 56.5083, lng: 12.9583,
-    swellDirs: [240, 315],
-    offshoreMin: 70, offshoreMax: 160,
+    lat: 56.5128,
+    lng: 12.9581,
     offshoreLabel: 'E/SE'
   },
   {
     id: 'molle',
     name: 'Mölle',
     region: 'Kullaberg',
-    lat: 56.2794, lng: 12.4975,
-    swellDirs: [270, 360],
-    offshoreMin: 315, offshoreMax: 360,
-    offshoreLabel: 'NNW→N (337° opt)',
-    optimalOffshore: 337
-  },
-  {
-    id: 'apelviken-n',
-    name: 'Skrea Strand',
-    region: 'Falkenberg',
-    lat: 56.8975, lng: 12.4625,
-    swellDirs: [200, 275],
-    offshoreMin: 30, offshoreMax: 110,
-    offshoreLabel: 'NE/E'
+    lat: 56.2811,
+    lng: 12.4958,
+    offshoreLabel: 'NNW→N'
   },
   {
     id: 'kaseberga',
     name: 'Kåseberga',
     region: 'Ystad',
-    lat: 55.3844, lng: 14.0572,
-    swellDirs: [135, 225],
-    offshoreMin: 315, offshoreMax: 45,
+    lat: 55.3833,
+    lng: 14.0572,
     offshoreLabel: 'N/NW'
   },
   {
     id: 'baskemolla',
     name: 'Baskemölla',
     region: 'Simrishamn',
-    lat: 55.5261, lng: 14.2028,
-    swellDirs: [90, 180],
-    offshoreMin: 225, offshoreMax: 315,
+    lat: 55.5261,
+    lng: 14.2028,
     offshoreLabel: 'SW/W'
   }
 ];
@@ -395,25 +276,23 @@ const SPOTS = [
 // ============================================================
 // STATE
 // ============================================================
-let spotData = {}; // id -> { score, label, wind, windDir, wave, period, waveDir, sst, hourly }
+let spotData = {};
 let markers = {};
-let charts = {};
-let mapInitialized = false;
 let leafletMap = null;
+let mapReady = false;
 
 // ============================================================
 // CLOCK
 // ============================================================
-function updateClock() {
-  const now = new Date();
+setInterval(() => {
   document.getElementById('clock').textContent =
-    now.toLocaleTimeString('sv-SE', {hour:'2-digit',minute:'2-digit'});
-}
-setInterval(updateClock, 1000);
-updateClock();
+    new Date().toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'});
+}, 1000);
+document.getElementById('clock').textContent =
+  new Date().toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'});
 
 // ============================================================
-// TAB SWITCHING
+// TABS
 // ============================================================
 function switchTab(tab) {
   document.querySelectorAll('.tab').forEach((t,i) => {
@@ -421,532 +300,334 @@ function switchTab(tab) {
   });
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById(tab+'-view').classList.add('active');
-  if (tab === 'map' && !mapInitialized) initMap();
-  if (tab === 'map' && mapInitialized) setTimeout(() => leafletMap.invalidateSize(), 100);
+  if (tab === 'map') {
+    if (!mapReady) initMap();
+    else setTimeout(() => leafletMap.invalidateSize(), 50);
+  }
 }
 
 // ============================================================
-// SCORE ENGINE V3
+// HELPERS
 // ============================================================
-function scoreSpot(spot, waveH, wavePeriod, waveDir, windSpd, windDir) {
-  let score = 0;
-  const reasons = [];
-
-  // Wave height (0-35 pts) — key driver on Västkusten
-  if (waveH >= 1.2) { score += 35; reasons.push({text:'Bra våghöjd', type:'green'}); }
-  else if (waveH >= 0.8) { score += 25; reasons.push({text:'OK våghöjd', type:'blue'}); }
-  else if (waveH >= 0.5) { score += 15; reasons.push({text:'Liten våg', type:'orange'}); }
-  else if (waveH >= 0.3) { score += 5; reasons.push({text:'Mikrovåg', type:'orange'}); }
-  else { score += 0; reasons.push({text:'Platt', type:'red'}); }
-
-  // Wave period (0-20 pts)
-  if (wavePeriod >= 8) { score += 20; reasons.push({text:'Lång period', type:'green'}); }
-  else if (wavePeriod >= 6) { score += 14; }
-  else if (wavePeriod >= 4) { score += 7; }
-  else { score += 0; reasons.push({text:'Kort chop', type:'red'}); }
-
-  // Swell direction (0-20 pts)
-  const [swMin, swMax] = spot.swellDirs;
-  const wdNorm = ((waveDir % 360) + 360) % 360;
-  const inSwell = isInArc(wdNorm, swMin, swMax);
-  if (inSwell) { score += 20; reasons.push({text:'Rätt svällriktning', type:'green'}); }
-  else { score -= 10; reasons.push({text:'Fel svällriktn.', type:'red'}); }
-
-  // VÄSTKUSTEN INSIGHT: offshore = waves dying, score the WINDOW just as wind shifts
-  // Wind relation (0-25 pts)
-  const wdirNorm = ((windDir % 360) + 360) % 360;
-
-  // Check if wind is offshore
-  let offshore = false;
-  if (spot.offshoreMin <= spot.offshoreMax) {
-    offshore = wdirNorm >= spot.offshoreMin && wdirNorm <= spot.offshoreMax;
-  } else {
-    // wraps 360
-    offshore = wdirNorm >= spot.offshoreMin || wdirNorm <= spot.offshoreMax;
-  }
-
-  if (spot.optimalOffshore) {
-    // Mölle — closer to 337° is better
-    const diff = Math.abs(wdirNorm - spot.optimalOffshore);
-    const ang = Math.min(diff, 360 - diff);
-    if (ang < 20) { score += 25; reasons.push({text:'Optimal Kullabergsvind', type:'green'}); }
-    else if (ang < 45) { score += 15; }
-  } else if (offshore) {
-    // Offshore — waves were generated, now dying. Medium score.
-    if (windSpd < 4) { score += 20; reasons.push({text:'Lätt offshore', type:'green'}); }
-    else if (windSpd < 7) { score += 12; reasons.push({text:'Offshore', type:'blue'}); }
-    else { score -= 5; reasons.push({text:'Stark offshore (flat)', type:'red'}); }
-  } else {
-    // Check sideshore / onshore
-    const sideshoreAngle = angleDiff(wdirNorm, swMin + (swMax-swMin)/2);
-    if (sideshoreAngle < 45) { score += 18; reasons.push({text:'Sideshore', type:'green'}); }
-    else if (sideshoreAngle < 70) { score += 10; reasons.push({text:'Side-onshore', type:'blue'}); }
-    else {
-      // Full onshore — generates waves but messy
-      if (windSpd >= 6 && windSpd <= 12) { score += 14; reasons.push({text:'Onshore vind', type:'blue'}); }
-      else if (windSpd > 12) { score += 5; reasons.push({text:'För stark onshore', type:'orange'}); }
-      else { score += 3; }
-    }
-  }
-
-  // Wind speed penalty (strong wind = choppy)
-  if (windSpd > 15) { score -= 12; reasons.push({text:'Stormvind', type:'red'}); }
-  else if (windSpd > 10) { score -= 5; }
-
-  score = Math.max(0, Math.min(100, Math.round(score)));
-  return { score, reasons };
+function dirCard(deg) {
+  const d = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  return d[Math.round(((deg%360)+360)%360/22.5)%16];
 }
 
-function isInArc(dir, min, max) {
-  if (min <= max) return dir >= min && dir <= max;
-  return dir >= min || dir <= max;
-}
-function angleDiff(a, b) {
-  const d = Math.abs(a - b) % 360;
-  return d > 180 ? 360 - d : d;
-}
-
-function scoreColor(s) {
-  if (s >= 80) return '#ff6b35';
-  if (s >= 60) return '#00e5a0';
-  if (s >= 40) return '#00b4d8';
-  if (s >= 20) return '#ff8c00';
+function waveColor(h) {
+  if (h >= 1.5) return '#00e5a0';
+  if (h >= 0.8) return '#00b4d8';
+  if (h >= 0.4) return '#f0a500';
   return '#5a7a95';
 }
-function scoreLabel(s) {
-  if (s >= 80) return 'EPIC';
-  if (s >= 60) return 'BRA';
-  if (s >= 40) return 'SURFBAR';
-  if (s >= 20) return 'DÅLIG';
-  return 'FLAT';
-}
-function scoreClass(s) {
-  if (s >= 80) return 'score-epic';
-  if (s >= 60) return 'score-good';
-  if (s >= 40) return 'score-surfable';
-  if (s >= 20) return 'score-poor';
-  return 'score-flat';
-}
 
-function dirToCardinal(deg) {
-  const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
-  return dirs[Math.round(((deg % 360) + 360) % 360 / 22.5) % 16];
+function compassSVG(deg, color, dashed, size=42) {
+  const cx=size/2, cy=size/2, r=size/2-4;
+  const rad = (deg-90)*Math.PI/180;
+  const tx = cx + Math.cos(rad)*r*0.78;
+  const ty = cy + Math.sin(rad)*r*0.78;
+  const bx = cx - Math.cos(rad)*r*0.5;
+  const by = cy - Math.sin(rad)*r*0.5;
+  const dash = dashed ? 'stroke-dasharray="4,3"' : '';
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+    <text x="${cx}" y="7" text-anchor="middle" font-size="5" fill="rgba(255,255,255,0.2)" font-family="Exo 2">N</text>
+    <line x1="${bx}" y1="${by}" x2="${tx}" y2="${ty}" stroke="${color}" stroke-width="2" ${dash} stroke-linecap="round"/>
+    <polygon points="${tx},${ty} ${tx-Math.cos(rad)*5+Math.sin(rad)*3},${ty-Math.sin(rad)*5-Math.cos(rad)*3} ${tx-Math.cos(rad)*5-Math.sin(rad)*3},${ty-Math.sin(rad)*5+Math.cos(rad)*3}" fill="${color}"/>
+  </svg>`;
 }
 
 // ============================================================
-// API FETCH — Open-Meteo Marine + Atmosphere
+// API
 // ============================================================
 async function fetchSpot(spot) {
-  const marine = `https://marine-api.open-meteo.com/v1/marine?latitude=${spot.lat}&longitude=${spot.lng}&hourly=wave_height,wave_period,wave_direction,sea_surface_temperature&timezone=Europe%2FStockholm&forecast_days=3`;
-  const atmo = `https://api.open-meteo.com/v1/forecast?latitude=${spot.lat}&longitude=${spot.lng}&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=ms&timezone=Europe%2FStockholm&forecast_days=3`;
-
-  const [mRes, aRes] = await Promise.all([fetch(marine), fetch(atmo)]);
-  const [mData, aData] = await Promise.all([mRes.json(), aRes.json()]);
-
-  return { marine: mData, atmo: aData };
+  const [mRes, aRes] = await Promise.all([
+    fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${spot.lat}&longitude=${spot.lng}&hourly=wave_height,wave_period,wave_direction,sea_surface_temperature&timezone=Europe%2FStockholm&forecast_days=3`),
+    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${spot.lat}&longitude=${spot.lng}&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=ms&timezone=Europe%2FStockholm&forecast_days=3`)
+  ]);
+  return { marine: await mRes.json(), atmo: await aRes.json() };
 }
 
-function getCurrentHourIndex(times) {
-  const now = new Date();
-  const hour = now.toISOString().slice(0,13); // "2026-05-20T14"
-  // Find closest
+function currentIdx(times) {
+  const now = new Date().toISOString().slice(0,13);
   let best = 0;
   for (let i = 0; i < times.length; i++) {
-    if (times[i].startsWith(hour)) { best = i; break; }
-    if (times[i] < now.toISOString()) best = i;
+    if (times[i].slice(0,13) <= now) best = i;
+    else break;
   }
   return best;
 }
 
-async function loadAllSpots() {
-  const statusEl = document.getElementById('status-text');
-  const dotEl = document.getElementById('status-dot');
-
-  let loaded = 0;
-  const promises = SPOTS.map(async (spot) => {
+async function loadAll() {
+  const stxt = document.getElementById('stxt');
+  let n = 0;
+  await Promise.all(SPOTS.map(async spot => {
     try {
       const { marine, atmo } = await fetchSpot(spot);
       const times = marine.hourly.time;
-      const idx = getCurrentHourIndex(times);
+      const i = currentIdx(times);
 
-      const waveH = marine.hourly.wave_height[idx] || 0;
-      const wavePeriod = marine.hourly.wave_period[idx] || 0;
-      const waveDir = marine.hourly.wave_direction[idx] || 0;
-      const sst = marine.hourly.sea_surface_temperature[idx];
-      const windSpd = atmo.hourly.wind_speed_10m[idx] || 0;
-      const windDir = atmo.hourly.wind_direction_10m[idx] || 0;
+      const waveH    = marine.hourly.wave_height[i] ?? 0;
+      const wavePer  = marine.hourly.wave_period[i] ?? 0;
+      const waveDir  = marine.hourly.wave_direction[i] ?? 0;
+      const sst      = marine.hourly.sea_surface_temperature[i];
+      const windSpd  = atmo.hourly.wind_speed_10m[i] ?? 0;
+      const windDir  = atmo.hourly.wind_direction_10m[i] ?? 0;
 
-      const { score, reasons } = scoreSpot(spot, waveH, wavePeriod, waveDir, windSpd, windDir);
-
-      // Build hourly arrays for sparklines (next 24h)
+      // Build 48h hourly
       const hourly = [];
-      for (let i = idx; i < Math.min(idx + 24, times.length); i++) {
-        const wH = marine.hourly.wave_height[i] || 0;
-        const wP = marine.hourly.wave_period[i] || 0;
-        const wD = marine.hourly.wave_direction[i] || 0;
-        const wS = atmo.hourly.wind_speed_10m[i] || 0;
-        const wDr = atmo.hourly.wind_direction_10m[i] || 0;
-        const { score: s } = scoreSpot(spot, wH, wP, wD, wS, wDr);
-        const t = new Date(times[i]);
-        hourly.push({ hour: t.getHours(), score: s, wave: wH, wind: wS, windDir: wDr });
+      for (let j = i; j < Math.min(i+48, times.length); j++) {
+        hourly.push({
+          time: times[j],
+          waveH:  marine.hourly.wave_height[j] ?? 0,
+          wavePer: marine.hourly.wave_period[j] ?? 0,
+          waveDir: marine.hourly.wave_direction[j] ?? 0,
+          windSpd: atmo.hourly.wind_speed_10m[j] ?? 0,
+          windDir: atmo.hourly.wind_direction_10m[j] ?? 0,
+          sst:    marine.hourly.sea_surface_temperature[j]
+        });
       }
 
-      spotData[spot.id] = { score, label: scoreLabel(score), reasons, waveH, wavePeriod, waveDir, windSpd, windDir, sst, hourly, times: times.slice(idx, idx+48), marine, atmo, idx };
-      loaded++;
-      statusEl.innerHTML = `<strong>${loaded}/${SPOTS.length}</strong> spots hämtade`;
-
+      spotData[spot.id] = { waveH, wavePer, waveDir, sst, windSpd, windDir, hourly };
+      n++;
+      stxt.innerHTML = `<strong style="color:var(--green)">${n}/${SPOTS.length}</strong> spots hämtade`;
     } catch(e) {
-      console.error('Failed:', spot.name, e);
-      spotData[spot.id] = { score: 0, label: 'FEL', reasons: [{text:'API-fel', type:'red'}], waveH:0, wavePeriod:0, waveDir:0, windSpd:0, windDir:0, sst:null, hourly:[] };
+      console.error(spot.name, e);
+      spotData[spot.id] = { waveH:0, wavePer:0, waveDir:0, sst:null, windSpd:0, windDir:0, hourly:[] };
     }
-  });
+  }));
 
-  await Promise.all(promises);
-
-  dotEl.style.background = 'var(--green)';
-  const now = new Date();
-  statusEl.innerHTML = `Data live · uppdaterad <strong>${now.toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})}</strong>`;
-  document.getElementById('last-updated').textContent = `Uppdaterat ${now.toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})}`;
+  const now = new Date().toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('hupd').textContent = `Uppdaterat ${now}`;
+  stxt.innerHTML = `Data live · uppdaterat <strong style="color:var(--green)">${now}</strong>`;
 
   renderSpots();
-  if (mapInitialized) updateMapMarkers();
+  if (mapReady) updateMarkers();
   populateForecastSelect();
-}
-
-// ============================================================
-// RENDER SPOTS
-// ============================================================
-function compassSVG(deg, color, size=40, label='') {
-  const rad = (deg - 90) * Math.PI / 180;
-  const cx = size/2, cy = size/2, r = size/2 - 4;
-  const tipX = cx + Math.cos(rad) * r * 0.75;
-  const tipY = cy + Math.sin(rad) * r * 0.75;
-  const tailX = cx - Math.cos(rad) * r * 0.45;
-  const tailY = cy - Math.sin(rad) * r * 0.45;
-  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" class="compass-svg">
-    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
-    <line x1="${tailX}" y1="${tailY}" x2="${tipX}" y2="${tipY}" stroke="${color}" stroke-width="2" stroke-linecap="round"/>
-    <circle cx="${tipX}" cy="${tipY}" r="3" fill="${color}"/>
-    <text x="${cx}" y="${size-1}" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.3)" font-family="Exo 2">${label}</text>
-  </svg>`;
-}
-
-function renderSpots() {
-  const container = document.getElementById('spots-container');
-  container.innerHTML = '';
-  const grid = document.createElement('div');
-  grid.className = 'spots-grid';
-
-  SPOTS.forEach(spot => {
-    const d = spotData[spot.id];
-    if (!d) return;
-    const col = scoreColor(d.score);
-
-    const card = document.createElement('div');
-    card.className = 'spot-card';
-    card.innerHTML = `
-      <div class="spot-header">
-        <div>
-          <div class="spot-name">${spot.name}</div>
-          <div class="spot-region">${spot.region}</div>
-        </div>
-        <div>
-          <div class="score-badge ${scoreClass(d.score)}">${d.score}</div>
-          <div class="score-label">${d.label}</div>
-        </div>
-      </div>
-      <div class="spot-metrics">
-        <div class="metric">
-          <div class="metric-val">${d.waveH.toFixed(1)}</div>
-          <div class="metric-unit">m</div>
-          <div class="metric-label">VÅGHÖJD</div>
-        </div>
-        <div class="metric">
-          <div class="metric-val">${d.wavePeriod.toFixed(0)}</div>
-          <div class="metric-unit">s</div>
-          <div class="metric-label">PERIOD</div>
-        </div>
-        <div class="metric">
-          <div class="metric-val">${d.windSpd.toFixed(0)}</div>
-          <div class="metric-unit">m/s</div>
-          <div class="metric-label">VIND</div>
-        </div>
-        <div class="metric">
-          <div class="metric-val">${d.sst !== null && d.sst !== undefined ? d.sst.toFixed(0)+'°' : '–'}</div>
-          <div class="metric-unit">C</div>
-          <div class="metric-label">VATTEN</div>
-        </div>
-      </div>
-      <div class="compass-row">
-        <div class="compass-wrap">
-          <div class="compass-label">Vind</div>
-          ${compassSVG(d.windDir, '#00b4d8', 38, dirToCardinal(d.windDir))}
-        </div>
-        <div class="compass-wrap">
-          <div class="compass-label">Våg</div>
-          ${compassSVG(d.waveDir, '#f0a500', 38, dirToCardinal(d.waveDir))}
-        </div>
-        <div style="flex:1;padding-left:8px">
-          <div class="reasons-row">
-            ${d.reasons.map(r => `<span class="chip chip-${r.type}">${r.text}</span>`).join('')}
-          </div>
-          <div style="font-size:0.6rem;color:var(--muted);margin-top:6px">
-            Offshore: <span style="color:var(--text)">${spot.offshoreLabel}</span>
-          </div>
-        </div>
-      </div>
-      <div class="sparkline-wrap"><canvas id="spark-${spot.id}"></canvas></div>
-    `;
-    grid.appendChild(card);
-
-    // Render sparkline after DOM inserted
-    setTimeout(() => renderSparkline(spot.id, d.hourly), 50);
-  });
-
-  container.appendChild(grid);
-}
-
-function renderSparkline(spotId, hourly) {
-  const canvas = document.getElementById(`spark-${spotId}`);
-  if (!canvas || !hourly.length) return;
-  if (charts[spotId]) { charts[spotId].destroy(); }
-
-  const labels = hourly.map(h => h.hour + 'h');
-  const scores = hourly.map(h => h.score);
-  const colors = scores.map(s => scoreColor(s));
-
-  const peak = Math.max(...scores);
-  const peakIdx = scores.indexOf(peak);
-
-  charts[spotId] = new Chart(canvas, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        data: scores,
-        borderColor: '#00b4d8',
-        borderWidth: 1.5,
-        pointRadius: scores.map((s,i) => i === peakIdx ? 4 : 0),
-        pointBackgroundColor: scores.map((s,i) => i === peakIdx ? scoreColor(s) : 'transparent'),
-        fill: true,
-        backgroundColor: 'rgba(0,180,216,0.06)',
-        tension: 0.4
-      }]
-    },
-    options: {
-      responsive: false,
-      plugins: { legend: { display: false }, tooltip: { enabled: false } },
-      scales: {
-        x: { display: false },
-        y: { display: false, min: 0, max: 100 }
-      },
-      animation: false
-    }
-  });
 }
 
 // ============================================================
 // MAP
 // ============================================================
 function initMap() {
-  leafletMap = L.map('map', {
-    center: [56.5, 12.6],
-    zoom: 8,
-    zoomControl: true,
-    attributionControl: false
-  });
+  leafletMap = L.map('map', { center: [56.5, 12.7], zoom: 8, attributionControl: false });
 
+  // Färgkarta — OpenStreetMap standard
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 18
+    maxZoom: 18,
+    attribution: '© OpenStreetMap'
   }).addTo(leafletMap);
 
-  mapInitialized = true;
+  L.control.attribution({ position: 'bottomright', prefix: false })
+    .addAttribution('© <a href="https://openstreetmap.org">OSM</a>')
+    .addTo(leafletMap);
 
-  // Add markers with available data (may be empty first)
+  mapReady = true;
+
   SPOTS.forEach(spot => {
     const d = spotData[spot.id];
-    const score = d ? d.score : 0;
-    const col = scoreColor(score);
-
-    const icon = createSpotIcon(spot, d);
-    const marker = L.marker([spot.lat, spot.lng], { icon })
+    const icon = makeIcon(spot, d);
+    const m = L.marker([spot.lat, spot.lng], { icon })
       .addTo(leafletMap)
-      .on('click', () => showMapPanel(spot.id));
-
-    markers[spot.id] = marker;
+      .on('click', () => showPanel(spot.id));
+    markers[spot.id] = m;
   });
+
+  setTimeout(() => leafletMap.invalidateSize(), 100);
 }
 
-function createSpotIcon(spot, d) {
-  const score = d ? d.score : 0;
-  const col = scoreColor(score);
+function makeIcon(spot, d) {
+  const waveH   = d ? d.waveH : 0;
   const windDir = d ? d.windDir : 0;
   const waveDir = d ? d.waveDir : 0;
-  const label = d ? scoreLabel(score) : '...';
+  const col     = waveColor(waveH);
+  const label   = d ? waveH.toFixed(1)+'m' : '...';
 
-  // Arrow helper: rotate arrow SVG
-  function arrow(deg, color, label) {
-    return `<g transform="rotate(${deg-90}, 0, 0)">
-      <line x1="-10" y1="0" x2="10" y2="0" stroke="${color}" stroke-width="1.8" stroke-linecap="round"/>
-      <polygon points="10,0 6,-3 6,3" fill="${color}"/>
-    </g>`;
+  // Vind: solid blå pil, Våg: streckad guld pil
+  // Pilar roteras: 0° = N, 90° = E etc
+  function arrowPath(deg, color, dashed, len) {
+    const rad = (deg - 90) * Math.PI / 180;
+    const cx = 40, cy = 40;
+    const ex = cx + Math.cos(rad)*len;
+    const ey = cy + Math.sin(rad)*len;
+    const bx = cx - Math.cos(rad)*(len*0.55);
+    const by = cy - Math.sin(rad)*(len*0.55);
+    const hx1 = ex - Math.cos(rad)*8 + Math.sin(rad)*4;
+    const hy1 = ey - Math.sin(rad)*8 - Math.cos(rad)*4;
+    const hx2 = ex - Math.cos(rad)*8 - Math.sin(rad)*4;
+    const hy2 = ey - Math.sin(rad)*8 + Math.cos(rad)*4;
+    const da = dashed ? 'stroke-dasharray="4,3"' : '';
+    return `<line x1="${bx}" y1="${by}" x2="${ex}" y2="${ey}" stroke="${color}" stroke-width="2.2" ${da} stroke-linecap="round"/>
+            <line x1="${ex}" y1="${ey}" x2="${hx1}" y2="${hy1}" stroke="${color}" stroke-width="2.2" stroke-linecap="round"/>
+            <line x1="${ex}" y1="${ey}" x2="${hx2}" y2="${hy2}" stroke="${color}" stroke-width="2.2" stroke-linecap="round"/>`;
   }
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="-40 -40 80 80">
-    <!-- outer ring -->
-    <circle r="20" fill="${col}22" stroke="${col}" stroke-width="1.5"/>
-    <!-- score text -->
-    <text y="4" text-anchor="middle" font-family="Orbitron,monospace" font-size="11" font-weight="900" fill="${col}">${score}</text>
-    <!-- wind arrow (blue) -->
-    <g transform="rotate(${windDir})">
-      <line x1="0" y1="0" x2="0" y2="-30" stroke="#00b4d8" stroke-width="1.5" stroke-linecap="round"/>
-      <polygon points="0,-30 -3,-24 3,-24" fill="#00b4d8"/>
-      <text y="34" text-anchor="middle" font-family="Exo 2,sans-serif" font-size="7" fill="#00b4d8">W</text>
-    </g>
-    <!-- wave arrow (gold) -->
-    <g transform="rotate(${waveDir})">
-      <line x1="0" y1="0" x2="0" y2="-22" stroke="#f0a500" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="3,2"/>
-      <polygon points="0,-22 -2,-17 2,-17" fill="#f0a500"/>
-    </g>
-    <!-- spot name -->
-    <text y="38" text-anchor="middle" font-family="Exo 2,sans-serif" font-size="8" fill="rgba(255,255,255,0.7)">${spot.name.split(' ')[0]}</text>
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80">
+    <!-- Yttre ring — våghöjdsfärg -->
+    <circle cx="40" cy="40" r="18" fill="${col}22" stroke="${col}" stroke-width="1.8"/>
+    <!-- Våghöjd text -->
+    <text x="40" y="44" text-anchor="middle" font-family="Orbitron,monospace" font-size="11" font-weight="900" fill="${col}">${label}</text>
+    <!-- Vindpil solid blå -->
+    ${arrowPath(windDir, '#00b4d8', false, 32)}
+    <!-- Vågpil streckad guld -->
+    ${arrowPath(waveDir, '#f0a500', true, 26)}
+    <!-- Spotnamn -->
+    <text x="40" y="76" text-anchor="middle" font-family="Exo 2,sans-serif" font-size="7.5" fill="rgba(255,255,255,0.75)">${spot.name}</text>
   </svg>`;
 
-  return L.divIcon({
-    html: svg,
-    iconSize: [80, 80],
-    iconAnchor: [40, 40],
-    className: ''
-  });
+  return L.divIcon({ html: svg, iconSize:[80,80], iconAnchor:[40,40], className:'' });
 }
 
-function updateMapMarkers() {
+function updateMarkers() {
   SPOTS.forEach(spot => {
-    const d = spotData[spot.id];
-    if (!markers[spot.id] || !d) return;
-    const icon = createSpotIcon(spot, d);
-    markers[spot.id].setIcon(icon);
+    if (!markers[spot.id]) return;
+    markers[spot.id].setIcon(makeIcon(spot, spotData[spot.id]));
   });
 }
 
-function showMapPanel(spotId) {
+function showPanel(spotId) {
   const spot = SPOTS.find(s => s.id === spotId);
   const d = spotData[spotId];
   if (!d) return;
+  document.getElementById('mpanel').classList.add('open');
+  document.getElementById('p-name').textContent = spot.name;
+  document.getElementById('p-region').textContent = spot.region;
+  document.getElementById('p-wave').textContent = d.waveH.toFixed(2)+' m';
+  document.getElementById('p-wave').style.color = waveColor(d.waveH);
+  document.getElementById('p-period').textContent = d.wavePer.toFixed(0)+' s';
+  document.getElementById('p-wdir').textContent = dirCard(d.waveDir)+' ('+Math.round(d.waveDir)+'°)';
+  document.getElementById('p-wind').textContent = d.windSpd.toFixed(1)+' m/s';
+  document.getElementById('p-wnddir').textContent = dirCard(d.windDir)+' ('+Math.round(d.windDir)+'°)';
+  document.getElementById('p-sst').textContent = d.sst != null ? d.sst.toFixed(1)+' °C' : '–';
+}
 
-  const panel = document.getElementById('map-panel');
-  panel.classList.add('visible');
-
-  document.getElementById('panel-name').textContent = spot.name;
-  document.getElementById('panel-score').textContent = d.score;
-  document.getElementById('panel-score').style.color = scoreColor(d.score);
-  document.getElementById('panel-label').textContent = d.label;
-  document.getElementById('panel-label').style.color = scoreColor(d.score);
-  document.getElementById('panel-wind').textContent = `${d.windSpd.toFixed(0)} m/s ${dirToCardinal(d.windDir)}`;
-  document.getElementById('panel-wave').textContent = `${d.waveH.toFixed(1)} m`;
-  document.getElementById('panel-period').textContent = `${d.wavePeriod.toFixed(0)} s`;
-  document.getElementById('panel-wdir').textContent = dirToCardinal(d.waveDir);
-  document.getElementById('panel-sst').textContent = d.sst !== null && d.sst !== undefined ? `${d.sst.toFixed(1)} °C` : '–';
+// ============================================================
+// SPOTS GRID
+// ============================================================
+function renderSpots() {
+  const grid = document.getElementById('spots-grid');
+  grid.innerHTML = '';
+  SPOTS.forEach(spot => {
+    const d = spotData[spot.id];
+    if (!d) return;
+    const col = waveColor(d.waveH);
+    const card = document.createElement('div');
+    card.className = 'spot-card';
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div>
+          <div class="spot-name">${spot.name}</div>
+          <div class="spot-region">${spot.region}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-family:'Orbitron',monospace;font-size:1.6rem;font-weight:900;color:${col};line-height:1">${d.waveH.toFixed(1)}</div>
+          <div style="font-size:0.6rem;color:var(--muted)">METER</div>
+        </div>
+      </div>
+      <div class="metrics">
+        <div class="metric">
+          <div class="mv">${d.wavePer.toFixed(0)}</div>
+          <div class="mu">s</div>
+          <div class="ml">Period</div>
+        </div>
+        <div class="metric">
+          <div class="mv">${dirCard(d.waveDir)}</div>
+          <div class="mu">${Math.round(d.waveDir)}°</div>
+          <div class="ml">Vågriktn.</div>
+        </div>
+        <div class="metric">
+          <div class="mv">${d.windSpd.toFixed(0)}</div>
+          <div class="mu">m/s</div>
+          <div class="ml">Vind</div>
+        </div>
+        <div class="metric">
+          <div class="mv">${d.sst != null ? d.sst.toFixed(0)+'°' : '–'}</div>
+          <div class="mu">C</div>
+          <div class="ml">Vatten</div>
+        </div>
+      </div>
+      <div class="compass-row" style="margin-top:10px">
+        <div class="cw">
+          <div class="cl" style="color:#00b4d8">Vind</div>
+          ${compassSVG(d.windDir,'#00b4d8',false,44)}
+        </div>
+        <div class="cw">
+          <div class="cl" style="color:#f0a500">Svall</div>
+          ${compassSVG(d.waveDir,'#f0a500',true,44)}
+        </div>
+        <div style="flex:1;padding-left:10px;font-size:0.65rem;color:var(--muted);line-height:1.8">
+          <div>Offshore: <span style="color:var(--text)">${spot.offshoreLabel}</span></div>
+          <div>Vind: <span style="color:#00b4d8">${dirCard(d.windDir)} ${d.windSpd.toFixed(1)} m/s</span></div>
+          <div>Svall: <span style="color:#f0a500">${dirCard(d.waveDir)} ${d.waveH.toFixed(2)} m</span></div>
+        </div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
 }
 
 // ============================================================
 // FORECAST TABLE
 // ============================================================
 function populateForecastSelect() {
-  const sel = document.getElementById('forecast-select');
+  const sel = document.getElementById('fsel');
   sel.innerHTML = '<option value="">Välj spot...</option>';
   SPOTS.forEach(s => {
-    const opt = document.createElement('option');
-    opt.value = s.id;
-    opt.textContent = s.name + ' – ' + s.region;
-    sel.appendChild(opt);
+    const o = document.createElement('option');
+    o.value = s.id; o.textContent = `${s.name} – ${s.region}`;
+    sel.appendChild(o);
   });
 }
 
-function renderForecastTable() {
-  const spotId = document.getElementById('forecast-select').value;
-  if (!spotId) return;
-
-  const spot = SPOTS.find(s => s.id === spotId);
+function renderForecast() {
+  const spotId = document.getElementById('fsel').value;
+  const wrap = document.getElementById('ftable-wrap');
+  if (!spotId) { wrap.innerHTML = '<div style="padding:30px;text-align:center;color:var(--muted);font-size:0.78rem">Välj en spot ovan</div>'; return; }
   const d = spotData[spotId];
-  if (!d || !d.marine) {
-    document.getElementById('forecast-container').innerHTML = '<div class="error-box">Data ej tillgänglig för denna spot</div>';
-    return;
-  }
+  if (!d || !d.hourly.length) { wrap.innerHTML = '<div style="padding:20px;color:var(--red);font-size:0.75rem">Data saknas</div>'; return; }
 
-  const { marine, atmo, idx } = d;
-  const times = marine.hourly.time;
-  let html = `<div class="forecast-table-wrap"><table class="forecast-table">
+  // Find best wave hour (daylight only)
+  let bestH = 0, bestI = -1;
+  d.hourly.forEach((h,i) => {
+    const hr = new Date(h.time).getHours();
+    if (hr >= 6 && hr <= 21 && h.waveH > bestH) { bestH = h.waveH; bestI = i; }
+  });
+
+  let html = `<div style="overflow-x:auto"><table class="ftable">
     <thead><tr>
-      <th>Tid</th><th>Poäng</th><th>Etikett</th>
-      <th>Våg</th><th>Period</th><th>Vågriktn.</th>
+      <th>Tid</th><th>Våghöjd</th><th>Period</th><th>Vågriktn.</th>
       <th>Vind</th><th>Vindriktn.</th><th>Vatten</th>
     </tr></thead><tbody>`;
 
-  let bestScore = -1, bestRow = -1;
-
-  const rows = [];
-  const now = new Date();
-  for (let i = idx; i < Math.min(idx + 48, times.length); i++) {
-    const t = new Date(times[i]);
-    if (t < now) continue;
-    const wH = marine.hourly.wave_height[i] || 0;
-    const wP = marine.hourly.wave_period[i] || 0;
-    const wD = marine.hourly.wave_direction[i] || 0;
-    const wS = atmo.hourly.wind_speed_10m[i] || 0;
-    const wDr = atmo.hourly.wind_direction_10m[i] || 0;
-    const sst = marine.hourly.sea_surface_temperature[i];
-    const { score } = scoreSpot(spot, wH, wP, wD, wS, wDr);
-    const h = t.getHours();
-    if (h < 6 || h > 21) continue; // Only daylight
-    rows.push({ t, score, wH, wP, wD, wS, wDr, sst });
-    if (score > bestScore) { bestScore = score; bestRow = rows.length - 1; }
-  }
-
-  rows.forEach((r, i) => {
-    const isBest = i === bestRow;
-    const dateStr = r.t.toLocaleDateString('sv-SE', {weekday:'short', day:'numeric', month:'short'});
-    const timeStr = r.t.toLocaleTimeString('sv-SE', {hour:'2-digit', minute:'2-digit'});
-    html += `<tr class="${isBest ? 'best-row' : ''}">
-      <td class="hour-cell">${dateStr} ${timeStr}</td>
-      <td class="score-cell" style="color:${scoreColor(r.score)}">${r.score}</td>
-      <td><span class="chip chip-${r.score>=60?'green':r.score>=40?'blue':'orange'}">${scoreLabel(r.score)}</span></td>
-      <td>${r.wH.toFixed(1)} m</td>
-      <td>${r.wP.toFixed(0)} s</td>
-      <td>${dirToCardinal(r.wD)} (${Math.round(r.wD)}°)</td>
-      <td>${r.wS.toFixed(0)} m/s</td>
-      <td>${dirToCardinal(r.wDr)} (${Math.round(r.wDr)}°)</td>
-      <td>${r.sst !== null && r.sst !== undefined ? r.sst.toFixed(1)+'°C' : '–'}</td>
+  d.hourly.forEach((h, i) => {
+    const t = new Date(h.time);
+    const hr = t.getHours();
+    if (hr < 6 || hr > 21) return;
+    const isBest = i === bestI;
+    const col = waveColor(h.waveH);
+    const dateStr = t.toLocaleDateString('sv-SE',{weekday:'short',day:'numeric',month:'short'});
+    const timeStr = t.toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'});
+    html += `<tr class="${isBest?'best-row':''}">
+      <td style="font-family:'Orbitron',monospace;font-size:0.62rem;color:${isBest?'var(--green)':'var(--muted)'}">${dateStr} ${timeStr}${isBest?' ★':''}</td>
+      <td style="font-family:'Orbitron',monospace;font-weight:700;color:${col}">${h.waveH.toFixed(2)} m</td>
+      <td>${h.wavePer.toFixed(0)} s</td>
+      <td>${dirCard(h.waveDir)} (${Math.round(h.waveDir)}°)</td>
+      <td>${h.windSpd.toFixed(1)} m/s</td>
+      <td>${dirCard(h.windDir)} (${Math.round(h.windDir)}°)</td>
+      <td>${h.sst != null ? h.sst.toFixed(1)+'°C' : '–'}</td>
     </tr>`;
   });
 
   html += '</tbody></table></div>';
-  document.getElementById('forecast-container').innerHTML = html;
-}
-
-// ============================================================
-// AUTO REFRESH every 10 min
-// ============================================================
-function startAutoRefresh() {
-  setInterval(() => {
-    loadAllSpots();
-    // Reset progress bar animation
-    const bar = document.getElementById('refresh-prog');
-    bar.style.animation = 'none';
-    bar.offsetHeight; // reflow
-    bar.style.animation = '';
-  }, 10 * 60 * 1000);
+  wrap.innerHTML = html;
 }
 
 // ============================================================
 // BOOT
 // ============================================================
-(async function init() {
-  // Start map immediately since it's the default tab
-  initMap();
-  await loadAllSpots();
-  startAutoRefresh();
-})();
+initMap();
+loadAll();
+setInterval(loadAll, 10*60*1000);
 </script>
 </body>
 </html>
